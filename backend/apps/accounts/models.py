@@ -1,13 +1,12 @@
 from mongoengine import Document, StringField, BooleanField, DateTimeField
 from django.contrib.auth.hashers import make_password, check_password
-from django.utils import timezone
 from datetime import datetime
 
 
 class User(Document):
     """
     MongoDB-based User model for MediSync.
-    Replaces Django's default User model with MongoEngine.
+    Complete MongoDB-based authentication (no SQLite).
     """
 
     ROLE_CHOICES = [
@@ -36,7 +35,7 @@ class User(Document):
     date_joined = DateTimeField(default=datetime.utcnow)
     last_login = DateTimeField()
 
-    # Organization reference (stored as string ID since hospitals are in MongoDB)
+    # Organization reference
     organization_id = StringField()
 
     meta = {
@@ -64,10 +63,6 @@ class User(Document):
         """Return display name for role."""
         role_dict = dict(self.ROLE_CHOICES)
         return role_dict.get(self.role, self.role)
-
-    def save(self, *args, **kwargs):
-        """Update last_login on save if needed."""
-        return super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.get_full_name() or self.username} ({self.get_role_display()})"

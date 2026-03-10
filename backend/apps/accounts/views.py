@@ -1,8 +1,8 @@
 import json
 from datetime import datetime
+from django.contrib.auth.decorators import login_required
 
 from django.contrib import messages as django_messages
-from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_POST
@@ -10,6 +10,7 @@ from mongoengine import DoesNotExist
 
 from apps.accounts.models import User
 from apps.accounts.mongo_auth import MongoDBUserBackend, serialize_user
+from apps.accounts.decorators import mongo_login_required
 from config.db import db
 
 
@@ -89,7 +90,6 @@ def logout_view(request):
     return response
 
 
-@login_required
 def dashboard_view(request):
     user = _get_current_user(request)
     if not user:
@@ -114,10 +114,11 @@ def _mongo_count(collection, query=None):
 
 
 # ─── SUPERADMIN ────────────────────────────────────────────────────────
-@login_required
+@mongo_login_required
 def superadmin_dashboard_view(request):
-    if not (request.user.is_superuser or request.user.role == 'platform_admin'):
-        return _redirect_for_role(request.user)
+    user = request.user_obj
+    if not (user.is_superuser or user.role == 'platform_admin'):
+        return _redirect_for_role(user)
 
     hospitals = _mongo_list(db.hospitals)
     total_patients = _mongo_count(db.patients)
@@ -208,7 +209,7 @@ def hospital_admin_view(request):
     disease_data = [{'label': l, 'pct': p, 'height': h} for l, p, h in zip(disease_labels, disease_pcts, disease_heights)]
 
     # Hospital name from user's org or first hospital
-    hospital_name = request.user.organization_id if hasattr(request.user, 'organization_id') and request.user.organization_id else ''
+    hospital_name = user.organization_id if user.organization_id else ''
     if not hospital_name:
         h = db.hospitals.find_one({}, {'name': 1, '_id': 0})
         hospital_name = h.get('name', 'Hospital') if h else 'Hospital'

@@ -21,16 +21,22 @@ class MongoDBUserBackend:
         Authenticate user by username/email and password.
         Returns User document if authenticated, None otherwise.
         """
+        if not username or not password:
+            return None
+
         try:
-            # Try to find user by username or email
-            try:
-                user = User.objects(username=username).first()
-            except:
+            # Try to find user by username first
+            user = User.objects(username=username).first()
+            
+            # If not found by username, try email
+            if not user:
                 user = User.objects(email=username).first()
 
             # Check if user exists and password is correct
-            if user and user.check_password(password) and user.is_active:
+            if user and user.is_active and user.check_password(password):
                 return user
+            
+            return None
         except Exception as e:
             print(f"Authentication error: {e}")
             return None

@@ -1,6 +1,7 @@
 from django.urls import path
 
 from . import views
+from .user_management import superadmin_create_user, superadmin_users_list
 
 app_name = 'accounts'
 
@@ -12,6 +13,11 @@ urlpatterns = [
     path('hospital-admin/', views.hospital_admin_view, name='hospital_admin'),
     path('doctor/', views.doctor_view, name='doctor'),
     path('technician/', views.technician_view, name='technician'),
+    
+    # User management (Web UI)
+    path('admin/users/', superadmin_users_list, name='users_list'),
+    path('admin/create-user/', superadmin_create_user, name='create_user'),
+    
     # API endpoints for storing records
     path('api/patient/', views.api_add_patient, name='api_add_patient'),
     path('api/doctor/', views.api_add_doctor, name='api_add_doctor'),
