@@ -3,6 +3,7 @@ djangorestframework>=3.14
 
 # MongoDB
 pymongo>=4.6
+mongoengine>=0.27.0
 
 # Background jobs
 celery>=5.3

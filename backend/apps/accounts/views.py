@@ -2,14 +2,28 @@ import json
 from datetime import datetime
 
 from django.contrib import messages as django_messages
-from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_POST
+from mongoengine import DoesNotExist
 
 from apps.accounts.models import User
+from apps.accounts.mongo_auth import MongoDBUserBackend, serialize_user
 from config.db import db
+
+
+def _get_current_user(request):
+    """
+    Get current MongoDB user from session.
+    """
+    user_id = request.session.get('user_id')
+    if not user_id:
+        return None
+    try:
+        return User.objects(id=user_id).first()
+    except:
+        return None
 
 
 def _redirect_for_role(user):
@@ -31,20 +45,26 @@ def index_view(request):
 
 
 def login_view(request):
-    if request.user.is_authenticated:
-        return _redirect_for_role(request.user)
+    user = _get_current_user(request)
+    if user:
+        return _redirect_for_role(user)
 
     if request.method == 'POST':
         email = request.POST.get('email', '').strip()
         password = request.POST.get('password', '')
         role = request.POST.get('role', '').strip()
 
-        user = authenticate(request, username=email, password=password)
+        # Authenticate using MongoDB backend
+        user = MongoDBUserBackend.authenticate(email, password)
         if user is not None:
             if role and user.role != role:
                 django_messages.error(request, 'Role does not match your account.')
             else:
-                login(request, user)
+                # Store user info in session
+                request.session['user_id'] = str(user.id)
+                request.session['username'] = user.username
+                request.session['user_data'] = serialize_user(user)
+                request.session.save()
                 return _redirect_for_role(user)
         else:
             django_messages.error(request, 'Invalid email or password.')
@@ -53,7 +73,15 @@ def login_view(request):
 
 
 def logout_view(request):
-    logout(request)
+    # Clear session
+    if 'user_id' in request.session:
+        del request.session['user_id']
+    if 'username' in request.session:
+        del request.session['username']
+    if 'user_data' in request.session:
+        del request.session['user_data']
+    request.session.save()
+    
     response = redirect('accounts:login')
     response.delete_cookie('sessionid')
     response.delete_cookie('csrftoken')
@@ -63,7 +91,10 @@ def logout_view(request):
 
 @login_required
 def dashboard_view(request):
-    return _redirect_for_role(request.user)
+    user = _get_current_user(request)
+    if not user:
+        return redirect('accounts:login')
+    return _redirect_for_role(user)
 
 
 # ─── helpers ───────────────────────────────────────────────────────────

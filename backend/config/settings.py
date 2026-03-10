@@ -167,8 +167,19 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
-# AUTH USER MODEL
-AUTH_USER_MODEL = 'accounts.User'
+# MONGOENGINE CONFIGURATION
+import mongoengine as me
+
+me.connect(
+    db=os.environ.get('MONGO_DB_NAME', 'medisync_db'),
+    host=os.environ.get('MONGO_URI', ''),
+    tz_aware=True,
+)
+
+
+# AUTH - Use Django's session backend but with custom user model
+# Don't use AUTH_USER_MODEL = 'accounts.User' since it's a MongoEngine Document
+# Instead, we handle authentication manually in views
 
 LOGIN_URL = 'accounts:login'
 LOGIN_REDIRECT_URL = 'accounts:dashboard'
